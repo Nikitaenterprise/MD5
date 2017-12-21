@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CUDA_MD5", "CUDA_MD5\CUDA_M
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PROC_MD5", "PROC_MD5\PROC_MD5.vcxproj", "{4E8A381F-A5F8-4AAA-B918-DB3817DAAA53}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "THRUST_MD5", "THRUST_MD5\THRUST_MD5.vcxproj", "{309846F9-075A-4EF7-9AFD-857111F3EC02}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{4E8A381F-A5F8-4AAA-B918-DB3817DAAA53}.Release|x64.Build.0 = Release|x64
 		{4E8A381F-A5F8-4AAA-B918-DB3817DAAA53}.Release|x86.ActiveCfg = Release|Win32
 		{4E8A381F-A5F8-4AAA-B918-DB3817DAAA53}.Release|x86.Build.0 = Release|Win32
+		{309846F9-075A-4EF7-9AFD-857111F3EC02}.Debug|x64.ActiveCfg = Debug|x64
+		{309846F9-075A-4EF7-9AFD-857111F3EC02}.Debug|x64.Build.0 = Debug|x64
+		{309846F9-075A-4EF7-9AFD-857111F3EC02}.Debug|x86.ActiveCfg = Debug|Win32
+		{309846F9-075A-4EF7-9AFD-857111F3EC02}.Debug|x86.Build.0 = Debug|Win32
+		{309846F9-075A-4EF7-9AFD-857111F3EC02}.Release|x64.ActiveCfg = Release|x64
+		{309846F9-075A-4EF7-9AFD-857111F3EC02}.Release|x64.Build.0 = Release|x64
+		{309846F9-075A-4EF7-9AFD-857111F3EC02}.Release|x86.ActiveCfg = Release|Win32
+		{309846F9-075A-4EF7-9AFD-857111F3EC02}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
