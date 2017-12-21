@@ -66,7 +66,7 @@ typedef struct {
 	char buffer[64];
 } context_t, *pcontext_t;
 
-__device__ void init(pcontext_t ctx) {
+__device__ __host__  void init(pcontext_t ctx) {
 	//assert(ctx);
 	ctx->count[0] = 0;
 	ctx->count[1] = 0;
@@ -76,7 +76,7 @@ __device__ void init(pcontext_t ctx) {
 	ctx->state[3] = 0x10325476;
 }
 
-__device__ void encode(char *out, uint32_t *in, size_t len) {
+__device__ __host__  void encode(char *out, uint32_t *in, size_t len) {
 	size_t i, j;
 
 	//assert(out && in);
@@ -88,7 +88,7 @@ __device__ void encode(char *out, uint32_t *in, size_t len) {
 	}
 }
 
-__device__ void decode(uint32_t *out, char *in, size_t len) {
+__device__ __host__ void decode(uint32_t *out, char *in, size_t len) {
 	size_t i, j;
 
 	//assert(out && in);
@@ -97,7 +97,7 @@ __device__ void decode(uint32_t *out, char *in, size_t len) {
 		(((uint32_t)in[j + 2]) << 16) | (((uint32_t)in[j + 3]) << 24));
 }
 
-__device__ void transform(uint32_t *state, char *block) {
+__device__ __host__ void transform(uint32_t *state, char *block) {
 	uint32_t a = state[0];
 	uint32_t b = state[1];
 	uint32_t c = state[2];
@@ -187,12 +187,12 @@ __device__ void transform(uint32_t *state, char *block) {
 	memset(x, 0, sizeof(x));
 }
 
-__device__ void update(pcontext_t ctx, char *in, size_t len) {
+__device__ __host__ void update(pcontext_t ctx, char *in, size_t len) {
 	size_t i = 0;
 	size_t index = 0;
 	size_t part_len = 0;
 
-	//assert(ctx);
+	assert(ctx);
 
 	index = (size_t)((ctx->count[0] >> 3) & 0x3f);
 	if ((ctx->count[0] += ((uint32_t)len << 3)) < ((uint32_t)len << 3))
@@ -202,7 +202,7 @@ __device__ void update(pcontext_t ctx, char *in, size_t len) {
 	part_len = 64 - index;
 
 	if (len >= part_len) {
-		memcpy(&ctx->buffer[index], in, part_len);
+		cudaMemcpy(&ctx->buffer[index], in, part_len, cudaMemcpyDeviceToDevice);
 		transform(ctx->state, ctx->buffer);
 
 		for (i = part_len; i + 63 < len; i += 64)
@@ -213,10 +213,10 @@ __device__ void update(pcontext_t ctx, char *in, size_t len) {
 	else {
 		i = 0;
 	}
-	memcpy(&ctx->buffer[index], &in[i], len - i);
+	cudaMemcpy(&ctx->buffer[index], &in[i], len - i, cudaMemcpyDeviceToDevice);
 }
 
-__device__ void final(char digest[16], pcontext_t ctx) {
+__device__ __host__ void final(char digest[16], pcontext_t ctx) {
 	char bits[8];
 	size_t index = 0;
 	size_t pad_len = 0;
@@ -235,7 +235,7 @@ __device__ void final(char digest[16], pcontext_t ctx) {
 	memset(ctx, 0, sizeof(*ctx));
 }
 
-__device__ int md5string(char *string, int length, char *digest)
+__device__ __host__ int md5string(char *string, int length, char *digest)
 {
 	context_t ctx;
 	init(&ctx);
@@ -245,15 +245,7 @@ __device__ int md5string(char *string, int length, char *digest)
 	return 1;
 }
 
-__global__ void globalmd5string(char *string, int length, char *digest)
-{
-	context_t ctx;
-	init(&ctx);
-	update(&ctx, string, length);
-	final(digest, &ctx);
-}
-
-__device__ int cudamemcmp(char *s1, char *s2, size_t n)
+__device__ __host__ int cudamemcmp(char *s1, char *s2, size_t n)
 {
 	const char *p1 = s1, *p2 = s2;
 	while (n--)
@@ -267,7 +259,7 @@ __device__ int cudamemcmp(char *s1, char *s2, size_t n)
 __global__ void start(char *correct_md5, char* correct_pass)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	//const int size = 62 * 62 * 62;
+	
 	char *alph = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	char str[3];
 	char md5[SIZEMD5];
@@ -275,54 +267,14 @@ __global__ void start(char *correct_md5, char* correct_pass)
 	str[0] = alph[idx % 62];
 	str[1] = alph[(idx / 62) % 62];
 	str[2] = alph[(idx / 62 / 62) % 62];
-
-	/*
-	char **str = new char*[size];
-	for (int i = 0; i < size; i++)
-	{
-	str[i] = new char[3];
-	}
-	for (int j = 0; j < 62; j++)
-	for (int k = 0; k < 62; k++)
-	for (int l = 0; l < 62; l++)
-	{
-	str[(j * 62 + k) * 62 + l][1] = alph[j];
-	str[(j * 62 + k) * 62 + l][2] = alph[k];
-	str[(j * 62 + k) * 62 + l][3] = alph[l];
-	}
-	*/
+	
 	md5string(str, 3, md5);
-	if (!cudamemcmp(str, md5, SIZEMD5))
+	if (!cudamemcmp(correct_md5, md5, SIZEMD5))
 	{
 		for (int i = 0; i < 3; i++) correct_pass[i] = str[i];
+		//correct_pass[3] = '\0';
 	}
 }
-
-void createRandomChar(char *newStr)
-{
-	std::random_device random_device;
-	std::mt19937 generator(random_device());
-	std::uniform_int_distribution<> distribution2('a', 'z');
-	std::uniform_int_distribution<> distribution1('A', 'Z');
-	std::uniform_int_distribution<> distribution3('0', '9');
-	for (int i = 0; i < strlen(newStr); i++)
-	{
-		int random = rand() % 3;
-		switch (random)
-		{
-		case 0:
-			newStr[i] = distribution1(generator);
-			break;
-		case 1:
-			newStr[i] = distribution2(generator);
-			break;
-		case 2:
-			newStr[i] = distribution3(generator);
-			break;
-		}
-	}
-}
-
 
 int main(int argc, char **argv) {
 
@@ -335,58 +287,32 @@ int main(int argc, char **argv) {
 	if (cudaMemcpy(pad_buffer, pad_buffer_orig, 64 * sizeof(char), cudaMemcpyHostToDevice) != cudaSuccess) std::cout << "Error CudaMemcpy pad_buffer" << std::endl;
 
 	char *str = "Hel";
-	char *d_str;
 	char *md5 = new char[SIZEMD5];
+	md5string(str, strlen(str), md5);
+	
+	std::cout << "We have password : str = " << str << " with this hash : md5 = ";
+	for (int i = 0; i < SIZEMD5; i++)
+		printf("%02hhx", md5[i]);
+	printf("\n");
+
+	char *newStr = new char [strlen(str)];
+
+	char *d_newStr;
+	if (cudaMalloc((void**)&d_newStr, strlen(str) *sizeof(char)) != cudaSuccess) std::cout << "Error CudaMalloc d_newStr" << std::endl;
 	char *d_md5;
 	if (cudaMalloc((void**)&d_md5, SIZEMD5 * sizeof(char)) != cudaSuccess) std::cout << "Error CudaMalloc d_md5" << std::endl;
-	if (cudaMalloc((void**)&d_str, strlen(str) * sizeof(char)) != cudaSuccess) std::cout << "Error CudaMalloc d_str" << std::endl;
-	if (cudaMemcpy(d_str, str, strlen(str) * sizeof(char), cudaMemcpyHostToDevice) != cudaSuccess) std::cout << "Error CudaMemcpy str" << std::endl;
-	globalmd5string << <1, 1 >> > (d_str, strlen(str), d_md5);
-	if (cudaMemcpy(md5, d_md5, SIZEMD5 * sizeof(char), cudaMemcpyDeviceToHost) != cudaSuccess) std::cout << "Error CudaMemcpy md5" << std::endl;
-
-	for (int i = 0; i < 16; i++)
-		printf("%02hhx", md5[i]);
-	printf("\n");
-
-	char *newStr = new char[strlen(str) + 1];
-	char *d_newStr = new char[strlen(str) + 1];
-	strcpy(newStr, str);
+	if (cudaMemcpy(d_md5, md5, SIZEMD5 * sizeof(char), cudaMemcpyHostToDevice) != cudaSuccess) std::cout << "Error CudaMemcpy d_md5" << std::endl;
 
 	char *newMd5 = new char[SIZEMD5];
-	strcpy(newMd5, md5);
-
-
-	if (cudaMalloc((void**)&d_newStr, (strlen(str) + 1) * sizeof(char)) != cudaSuccess) std::cout << "Error CudaMalloc d_newStr" << std::endl;
-
-
-
-	//createRandomChar(newStr);
-	//md5string(newStr, strlen(newStr), newMd5);
-
-	//std::cout << "lenth of str = " << strlen(str) << std::endl;
-	//std::cout << "lenth of md5 = " << strlen(md5) << std::endl;
-	//std::cout << "lenth of newStr = " << strlen(newStr) << std::endl;
-	//std::cout << "lenth of newMd5 = " << strlen(newMd5) << std::endl;
-
-	//int counter = 0;
-	//while (strncmp(md5, newMd5, SIZEMD5) != 0)
-	//{
-	//	createRandomChar(newStr);
-	//	md5string(newStr, strlen(newStr), newMd5);
-	//	counter++;
-	//}
-
-	start << <1 / (64 * 64 * 64), 64 * 64 * 64 >> > (d_md5, d_newStr);
-	if (cudaMemcpy(d_newStr, newStr, (strlen(str) + 1) * sizeof(char), cudaMemcpyDeviceToHost) != cudaSuccess) std::cout << "Error CudaMemcpy newStr" << std::endl;
-
-	std::cout << newStr << "\t";
+	
+	start <<<1 / (64 * 64 * 64), 64 * 64 * 64 >>> (d_md5, d_newStr);
+	if (cudaMemcpy(newStr, d_newStr, strlen(str) * sizeof(char), cudaMemcpyDeviceToHost) != cudaSuccess) std::cout << "Error CudaMemcpy newStr" << std::endl;
+	if (cudaMemcpy(newMd5, d_md5, SIZEMD5 * sizeof(char), cudaMemcpyDeviceToHost) != cudaSuccess) std::cout << "Error CudaMemcpy newMd5" << std::endl;
+	
+	std::cout << "We`ve got this hash with CUDA : md5 = ";
 	for (int i = 0; i < SIZEMD5; i++)
 		printf("%02hhx", newMd5[i]);
-	printf("\n\t");
-	for (int i = 0; i < SIZEMD5; i++)
-		printf("%02hhx", md5[i]);
 	printf("\n");
-	//std::cout << "Number of cycles is = " << counter << std::endl;
 
 	system("pause");
 	return 0;
