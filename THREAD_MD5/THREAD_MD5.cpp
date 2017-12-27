@@ -1,7 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
-
-
-#include <mpi.h>
+#include <iostream>       // std::cout
+#include <thread>         // std::thread
 #include <assert.h>
 #include <string.h>
 #include <stdint.h>
@@ -239,28 +238,6 @@ void final(char digest[16], pcontext_t ctx) {
 	memset(ctx, 0, sizeof(*ctx));
 }
 
-int md5file(char *filename, char *digest) {
-	FILE *pfile;
-	context_t ctx;
-	size_t len = 0;
-	char buffer[BUFSIZ];
-
-	assert(filename && digest);
-	if ((pfile = fopen(filename, "rb")) == NULL) {
-		fprintf(stderr, "can't open file <%s>\n", filename);
-		return 0;
-	}
-
-	init(&ctx);
-	while (len = fread(buffer, 1, BUFSIZ, pfile))
-		update(&ctx, buffer, len);
-
-	final(digest, &ctx);
-	fclose(pfile);
-
-	return 1;
-}
-
 int md5string(char *string, int length, char *digest)
 {
 	context_t ctx;
@@ -271,82 +248,51 @@ int md5string(char *string, int length, char *digest)
 	return 1;
 }
 
-void createRandomChar(char *newStr)
+void start(char *correct_md5, char* correct_pass, int id)
 {
-	std::random_device random_device;
-	std::mt19937 generator(random_device());
-	std::uniform_int_distribution<> distribution2('a', 'z');
-	std::uniform_int_distribution<> distribution1('A', 'Z');
-	std::uniform_int_distribution<> distribution3('0', '9');
-	for (int i = 0; i < strlen(newStr); i++)
-	{
-		int random = rand() % 3;
-		switch (random)
-		{
-		case 0:
-			newStr[i] = distribution1(generator);
-			break;
-		case 1:
-			newStr[i] = distribution2(generator);
-			break;
-		case 2:
-			newStr[i] = distribution3(generator);
-			break;
-		}
-	}
+	char *alph = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	char str[3];
+	char md5[SIZEMD5];
+
+	str[0] = alph[id % 62];
+	str[1] = alph[(id / 62) % 62];
+	str[2] = alph[(id / 62 / 62) % 62];
+
+	md5string(str, 3, md5);
+	if (!memcmp(correct_md5, md5, SIZEMD5))	for (int i = 0; i < 3; i++) correct_pass[i] = str[i];
+	
 }
 
-void createChar(char *newStr)
-{
-	static char *staticStr;
-	for (int i = 0; i < strlen(newStr); i++)
-	{
-		newStr[i];
-	}
-}
-
-int main(int argc, char **argv) 
+void md5main(int id)
 {
 	char *str = "Hel";
 	char *md5 = new char[SIZEMD5];
-	//strcpy(md5, str);
 
 	md5string(str, strlen(str), md5);
 
-	for (int i = 0; i < 16; i++)
+	/*for (int i = 0; i < 16; i++)
 		printf("%02hhx", md5[i]);
-	printf("\n");
+	printf("\n");*/
 
-	char *newStr = new char[strlen(str) + 1];
-	strcpy(newStr, str);
-	char *newMd5 = new char[SIZEMD5];
-	strcpy(newMd5, md5);
+	char *newStr = new char[strlen(str)];
 
-	createRandomChar(newStr);
-	md5string(newStr, strlen(newStr), newMd5);
+	start(md5, newStr, id);
+	if (!memcmp(str, newStr, 3)) std::cout << "str = " << str << "\tnewStr = " << newStr << std::endl;;
+}
 
-	std::cout << "lenth of str = " << strlen(str) << std::endl;
-	std::cout << "lenth of md5 = " << strlen(md5) << std::endl;
-	std::cout << "lenth of newStr = " << strlen(newStr) << std::endl;
-	std::cout << "lenth of newMd5 = " << strlen(newMd5) << std::endl;
-
-	int counter = 0;
-	while (strncmp(md5, newMd5, SIZEMD5) != 0)
+int main(int argc, char **argv)
+{
+	std::vector<std::thread> threadVector;
+	for (int i = 0; i < 62 * 62 * 62; i++)
 	{
-		createRandomChar(newStr);
-		md5string(newStr, strlen(newStr), newMd5);
-		counter++;
+		std::thread th(md5main, i);
+		threadVector.push_back(move(th));
 	}
-
-	std::cout << newStr << "\t";
-	for (int i = 0; i < SIZEMD5; i++)
-		printf("%02hhx", newMd5[i]);
-	printf("\n\t");
-	for (int i = 0; i < SIZEMD5; i++)
-		printf("%02hhx", md5[i]);
-	printf("\n");
-	std::cout << "Number of cycles is = " << counter << std::endl;
-	
+	std::cout << "Hi\n";
+	for (auto it = threadVector.begin(); it != threadVector.end(); it++)
+	{
+		(*it).join();
+	}
 	system("pause");
 	return 0;
 }
