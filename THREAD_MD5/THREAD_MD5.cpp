@@ -1,6 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include <iostream>       // std::cout
-#include <thread>         // std::thread
+#include <thread>
 #include <assert.h>
 #include <string.h>
 #include <stdint.h>
