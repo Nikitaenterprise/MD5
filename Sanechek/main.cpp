@@ -15,46 +15,54 @@ using std::string;
 using std::cout;
 using std::endl;
 
-void start(std::string correct_hash, std::string correct_pass, int id, bool good)
+void start(const std::string &correctHash, std::string &newPass, const std::string &correctPass, int id)
 {
+	//std::cout << "I`m start\n";
 	char *alph = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-	std::string str;
+	std::string str = correctPass;
+	//std::cout << correct_hash << std::endl;
 
 	str[0] = alph[id % 62];
 	str[1] = alph[(id / 62) % 62];
 	str[2] = alph[(id / 62 / 62) % 62];
-
+	//std::cout << "str = " << str << std::endl;
 	std::string newHash = sha256(str);
-	if (newHash == correct_hash)
+	if (newHash == correctHash)
 	{
-		correct_pass = str;
-		good = true;
+		newPass = str;
 	}
 }
 
-void sha256Main(int id, bool good)
+void sha256Main(int id, int &good)
 {
-	std::string input = "aaa";
-	std::string crackhash = sha256(input);
+	//std::cout << "I`m sha main\n";
+	//std::cout << "The good is " << good << std::endl;
+	std::string correctPass = "bbb";
+	std::string correctHash = sha256(correctPass);
 	std::string newPass;
-	start(crackhash, newPass, id, good);
-	if (newPass == input)
+	start(std::ref(correctHash), std::ref(newPass), std::ref(correctPass), id);
+	if (newPass == correctPass)
 	{
-		std::cout << "id =" << id;
-		good = true;
+		good = 1;
+		std::cout << "We found pass" << std::endl;
+		std::cout << "Password = " << newPass << std::endl;
+		std::cout << "Hash = " << correctHash << std::endl;
+		std::cout << "id = " << id << std::endl;
+		//std::cout << "Now the good is " << good << std::endl;
 	}
 }
 
 int main(int argc, char *argv[])
 {
 	std::vector<std::thread> threadVector;
-	bool good = false;
-	for (int i = 0; i < 62; i++)
+	int good = 0;
+	for (int id = 0; id < 62*62*62; id++)
 	{
-		std::thread th(sha256Main, i, good);
+		//std::cout << "The main good is "<< good << std::endl;
+		std::thread th(sha256Main, id, std::ref(good));
 		threadVector.push_back(move(th));
 		//std::cout << i << std::endl;
-		if (good == true) break;
+		if (good == 1) break;
 	}
 	std::cout << "Hi\n";
 	for (auto it = threadVector.begin(); it != threadVector.end(); it++)
