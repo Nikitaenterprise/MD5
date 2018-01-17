@@ -2,8 +2,8 @@
 
 #include <windows.h>
 #include <iostream>
-#include <tlhelp32.h>
 #include <vector>
+#include <TlHelp32.h>
 #include "sha256.h"
 
 void start(const std::string &correctHash, std::string &newPass, const std::string &correctPass, const std::vector<int> &diapasone)
